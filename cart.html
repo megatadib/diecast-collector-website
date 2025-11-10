@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Cart — DiecastHub</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    table { width:90%; margin:20px auto; border-collapse:collapse; background:#fff; border-radius:10px; overflow:hidden; }
+    th, td { padding:12px; border-bottom:1px solid #eee; text-align:center; }
+    th { background:#222; color:#fff; }
+    .total { width:90%; margin:10px auto; text-align:right; font-weight:bold; }
+    .btn { background:#ff5757; color:#fff; border:none; padding:6px 10px; border-radius:6px; cursor:pointer; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Your Cart</h1>
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="marketplace.html">Marketplace</a>
+      <a href="backend/logout.php">Logout</a>
+      <a href="cart.html" style="position:relative; padding-right:18px;">
+  Cart <span id="badge" style="display:none; background:#ff3b3b; color:#fff; border-radius:999px; padding:2px 7px; font-size:11px; position:absolute; top:-8px; right:-12px;">0</span>
+</a>
+
+    </nav>
+  </header>
+
+<main>
+  <table>
+    <thead>
+      <tr><th>Product</th><th>Price (RM)</th><th>Qty</th><th>Action</th></tr>
+    </thead>
+    <tbody id="rows"></tbody>
+  </table>
+  <div class="total">Total: RM <span id="total">0.00</span></div>
+ <div style="width:90%;margin:10px auto;text-align:right;">
+  <button id="checkoutBtn" class="btn" style="background:#4CAF50;">Checkout</button>
+</div>
+
+</main>
+
+<script>
+  async function loadCart() {
+    const res = await fetch('backend/get_cart.php', { cache: 'no-store' });
+    const items = await res.json();
+    const tbody = document.getElementById('rows');
+    const totalEl = document.getElementById('total');
+    tbody.innerHTML = '';
+    let total = 0;
+
+    if (!items.length) {
+      tbody.innerHTML = `<tr><td colspan="4">Your cart is empty.</td></tr>`;
+    } else {
+      items.forEach(i => {
+        total += Number(i.price) * Number(i.quantity);
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${i.product_name}</td>
+          <td>${Number(i.price).toFixed(2)}</td>
+          <td>${i.quantity}</td>
+          <td><button class="btn" onclick="removeItem(${i.id})">Remove</button></td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+    totalEl.textContent = total.toFixed(2);
+  }
+
+  async function removeItem(id) {
+    const res = await fetch('backend/remove_from_cart.php?id=' + id);
+    const data = await res.json();
+    if (data.status === 'removed') loadCart();
+    else alert(data.message || 'Failed to remove item.');
+  }
+
+ async function checkout() {
+    if (!confirm('Proceed to checkout?')) return;
+    const res = await fetch('backend/checkout.php', { method: 'POST' });
+    const data = await res.json();
+    if (data.status === 'success') {
+      alert(`Order placed! Order ID: ${data.order_id}\nTotal RM ${data.total}`);
+      window.location.href = 'orders.html';
+    } else {
+      alert(data.message || 'Checkout failed.');
+    }
+  }
+  document.getElementById('checkoutBtn').addEventListener('click', checkout);
+
+    if (data.status === 'success') {
+      alert(`Order placed! Order ID: ${data.order_id}\nTotal RM ${data.total}`);
+      window.location.href = 'orders.html';
+    } else {
+      alert(data.message || 'Checkout failed.');
+    }
+  
+
+  document.getElementById('checkoutBtn').addEventListener('click', checkout);
+  loadCart();
+
+  async function updateBadge() {
+    const el = document.getElementById('badge');
+    if (!el) return;
+    try {
+      const r = await fetch('backend/cart_count.php', { cache:'no-store' });
+      const data = await r.json();
+      if (data && typeof data.count === 'number') {
+        if (data.count > 0) { el.textContent = data.count; el.style.display='inline-block'; }
+        else { el.style.display='none'; }
+      }
+    } catch(e){}
+  }
+  updateBadge();
+  
+</script>
+
+</body>
+</html>

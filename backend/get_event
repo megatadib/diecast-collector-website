@@ -1,0 +1,12 @@
+<?php
+header('Content-Type: application/json');
+include 'db.php';
+
+$id = (int)($_GET['id'] ?? 0);
+if ($id <= 0) { echo json_encode(null); exit; }
+
+$stmt = $conn->prepare("SELECT id, title, description, location, date, time, poster FROM events WHERE id=?");
+$stmt->bind_param("i", $id);
+$stmt->execute();
+$res = $stmt->get_result();
+echo json_encode($res->fetch_assoc());

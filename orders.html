@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>My Orders — DiecastHub</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    table { width:90%; margin:20px auto; border-collapse:collapse; background:#fff; border-radius:10px; overflow:hidden; }
+    th, td { padding:12px; border-bottom:1px solid #eee; text-align:center; }
+    th { background:#222; color:#fff; }
+    .link { color:#0a66c2; cursor:pointer; text-decoration:underline; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>My Orders</h1>
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="marketplace.html">Marketplace</a>
+      <a href="cart.html">Cart</a>
+      <a href="backend/logout.php">Logout</a>
+      <a href="cart.html" style="position:relative; padding-right:18px;">
+  Cart <span id="badge" style="display:none; background:#ff3b3b; color:#fff; border-radius:999px; padding:2px 7px; font-size:11px; position:absolute; top:-8px; right:-12px;">0</span>
+</a>
+
+    </nav>
+  </header>
+
+  <main>
+    <table>
+      <thead>
+        <tr><th>Order ID</th><th>Total (RM)</th><th>Date</th><th>Details</th></tr>
+      </thead>
+      <tbody id="orders"></tbody>
+    </table>
+
+    <table id="itemsTable" style="display:none;">
+      <thead>
+        <tr><th>Product</th><th>Price (RM)</th><th>Qty</th></tr>
+      </thead>
+      <tbody id="items"></tbody>
+    </table>
+  </main>
+
+  <script>
+    async function loadOrders() {
+      const res = await fetch('backend/get_orders.php', { cache: 'no-store' });
+      const data = await res.json();
+      const tbody = document.getElementById('orders');
+      tbody.innerHTML = '';
+
+      if (!data.length) {
+        tbody.innerHTML = `<tr><td colspan="4">No orders yet.</td></tr>`;
+        return;
+      }
+
+      data.forEach(o => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${o.id}</td>
+          <td>${Number(o.total).toFixed(2)}</td>
+          <td>${o.created_at}</td>
+          <td><span class="link" onclick="viewItems(${o.id})">View</span></td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function viewItems(order_id) {
+      const res = await fetch('backend/get_order_items.php?order_id=' + order_id);
+      const items = await res.json();
+      const tbody = document.getElementById('items');
+      const table = document.getElementById('itemsTable');
+
+      tbody.innerHTML = '';
+      items.forEach(i => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${i.product_name}</td>
+          <td>${Number(i.price).toFixed(2)}</td>
+          <td>${i.quantity}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+      table.style.display = 'table';
+    }
+
+    loadOrders();
+
+    async function updateBadge() {
+    const el = document.getElementById('badge');
+    if (!el) return;
+    try {
+      const r = await fetch('backend/cart_count.php', { cache:'no-store' });
+      const data = await r.json();
+      if (data && typeof data.count === 'number') {
+        if (data.count > 0) { el.textContent = data.count; el.style.display='inline-block'; }
+        else { el.style.display='none'; }
+      }
+    } catch(e){}
+  }
+  updateBadge();
+  
+  </script>
+</body>
+</html>

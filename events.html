@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Upcoming Events — DiecastHub</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body{font-family:Arial, sans-serif; background:#f6f7f9; margin:0}
+    header{background:#1f1f1f; color:#fff; padding:16px}
+    .grid{max-width:1000px; margin:24px auto; padding:0 16px; display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:16px}
+    .card{background:#fff; border-radius:12px; box-shadow:0 2px 10px rgba(0,0,0,.06); padding:16px}
+    .meta{color:#555; font-size:14px; margin:6px 0}
+  </style>
+</head>
+<body>
+  <header><h1>Upcoming Diecast Events</h1></header>
+
+  <main class="grid" id="list"></main>
+
+  <script>
+    async function loadEvents(){
+      const r = await fetch('backend/get_events.php',{cache:'no-store'});
+      const items = await r.json();
+      const list = document.getElementById('list');
+      list.innerHTML = '';
+      if (!Array.isArray(items) || items.length === 0){
+        list.innerHTML = '<p style="grid-column:1/-1; color:#666; text-align:center;">No upcoming events.</p>';
+        return;
+      }
+      items.forEach(e => {
+        const div = document.createElement('div');
+        div.className = 'card';
+        div.innerHTML = `
+          <h3>${e.title}</h3>
+          <div class="meta"><b>Date:</b> ${e.date} ${e.time}</div>
+          <div class="meta"><b>Location:</b> ${e.location}</div>
+          <p>${e.description}</p>
+        `;
+        list.appendChild(div);
+      });
+    }
+    loadEvents();
+  </script>
+</body>
+</html>

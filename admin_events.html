@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Admin — Events</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body{font-family:Arial, sans-serif; background:#f6f7f9; margin:0; color:#222}
+    header{background:#1f1f1f; color:#fff; padding:16px}
+    .wrap{max-width:1000px; margin:24px auto; padding:0 16px}
+    .grid{display:grid;grid-template-columns:1fr 2fr;gap:16px}
+    .card{background:#fff; border-radius:12px; box-shadow:0 2px 10px rgba(0,0,0,.06); padding:18px}
+    input, textarea{width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; margin:6px 0}
+    .row{display:flex; gap:8px}
+    button{padding:10px 14px; border:none; border-radius:8px; cursor:pointer}
+    .save{background:#4CAF50; color:#fff}
+    .danger{background:#ff5757; color:#fff}
+    table{width:100%; border-collapse:collapse}
+    th,td{padding:10px; border-bottom:1px solid #eee; text-align:left}
+    th{background:#222; color:#fff}
+    .small{font-size:12px; color:#666}
+    a.link{color:#0a66c2; text-decoration:none}
+    .thumb{width:80px; height:60px; object-fit:cover; border-radius:6px; border:1px solid #eee}
+  </style>
+</head>
+<body>
+  <header><h1>Admin — Events</h1></header>
+
+  <div class="wrap">
+    <div class="grid">
+      <!-- Form -->
+      <div class="card">
+        <h3 id="formTitle">Add Event</h3>
+        <input type="hidden" id="eid">
+        <input id="title" placeholder="Event title" />
+        <textarea id="description" rows="5" placeholder="Description"></textarea>
+        <input id="location" placeholder="Location" />
+        <div class="row">
+          <input id="date" type="date" />
+          <input id="time" type="time" />
+        </div>
+
+        <!-- ✅ Poster upload + preview -->
+        <input id="poster" type="file" accept="image/*" />
+        <img id="preview" alt="Poster preview" style="max-width:100%; display:none; border-radius:8px; margin-top:8px; border:1px solid #eee;">
+
+        <div class="row">
+          <button class="save" onclick="saveEvent()">Save</button>
+          <button onclick="resetForm()">Reset</button>
+          <a class="link" href="admin_dashboard.html" style="margin-left:auto">⬅ Dashboard</a>
+        </div>
+        <p class="small">Events appear on the public <a class="link" href="events.html" target="_blank">Events</a> page automatically.</p>
+      </div>
+
+      <!-- List -->
+      <div class="card">
+        <h3>Upcoming Events</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Poster</th>
+              <th>Title</th>
+              <th>Date</th>
+              <th>Time</th>
+              <th>Location</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // (Optional) page guard using whoami.php if you added it
+    (async () => {
+      try {
+        const r = await fetch('backend/whoami.php', {cache:'no-store'});
+        const me = await r.json();
+        if (!me.logged_in || me.role !== 'admin') {
+          alert('Admins only'); location.href='login.html';
+        }
+      } catch {
+        alert('Session check failed'); location.href='login.html';
+      }
+    })();
+
+    const posterInput = document.getElementById('poster');
+    const previewImg  = document.getElementById('preview');
+
+    // ✅ Live preview for poster
+    if (posterInput) {
+      posterInput.addEventListener('change', () => {
+        const file = posterInput.files[0];
+        if (file) {
+          const url = URL.createObjectURL(file);
+          previewImg.src = url;
+          previewImg.style.display = 'block';
+        } else {
+          previewImg.src = '';
+          previewImg.style.display = 'none';
+        }
+      });
+    }
+
+    function resetForm(){
+      document.getElementById('eid').value='';
+      document.getElementById('title').value='';
+      document.getElementById('description').value='';
+      document.getElementById('location').value='';
+      document.getElementById('date').value='';
+      document.getElementById('time').value='';
+      // clear poster input + preview
+      if (posterInput) posterInput.value='';
+      if (previewImg) { previewImg.src=''; previewImg.style.display='none'; }
+      document.getElementById('formTitle').textContent='Add Event';
+    }
+
+    async function loadEvents(){
+      const r = await fetch('backend/get_events.php',{cache:'no-store'});
+      const items = await r.json();
+      const tb = document.getElementById('rows');
+      tb.innerHTML = '';
+
+      if (!Array.isArray(items) || items.length === 0){
+        tb.innerHTML = `<tr><td colspan="6">No events yet.</td></tr>`;
+        return;
+      }
+
+      items.forEach(e => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${e.poster ? `<img class="thumb" src="uploads/events/${e.poster}" alt="">` : ''}</td>
+          <td>${e.title}</td>
+          <td>${e.date}</td>
+          <td>${e.time}</td>
+          <td>${e.location}</td>
+          <td>
+            <button onclick="editEvent(${e.id})">Edit</button>
+            <button class="danger" onclick="delEvent(${e.id})">Delete</button>
+          </td>`;
+        tb.appendChild(tr);
+      });
+    }
+
+    async function saveEvent(){
+      const fd = new FormData();
+      fd.append('id', document.getElementById('eid').value);
+      fd.append('title', document.getElementById('title').value.trim());
+      fd.append('description', document.getElementById('description').value.trim());
+      fd.append('location', document.getElementById('location').value.trim());
+      fd.append('date', document.getElementById('date').value);
+      fd.append('time', document.getElementById('time').value);
+      // ✅ include poster if selected
+      const file = posterInput?.files?.[0];
+      if (file) fd.append('poster', file);
+
+      const r = await fetch('backend/save_event.php',{method:'POST', body:fd});
+      const data = await r.json();
+      alert(data.message || 'Saved');
+      resetForm();
+      loadEvents();
+    }
+
+    async function editEvent(id){
+  const r = await fetch('backend/get_event.php?id=' + id);
+  const e = await r.json();
+  if (!e) return;
+
+  document.getElementById('eid').value = e.id;
+  document.getElementById('title').value = e.title;
+  document.getElementById('description').value = e.description;
+  document.getElementById('location').value = e.location;
+  document.getElementById('date').value = e.date;
+  document.getElementById('time').value = e.time;
+
+  // Show existing poster
+  if (e.poster) {
+    previewImg.src = 'uploads/events/' + e.poster;
+    previewImg.style.display = 'block';
+  } else {
+    previewImg.src = '';
+    previewImg.style.display = 'none';
+  }
+
+  document.getElementById('formTitle').textContent='Edit Event';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+
+    async function delEvent(id){
+      if (!confirm('Delete this event?')) return;
+      const r = await fetch('backend/delete_event.php?id='+id);
+      const data = await r.json();
+      if (data.status === 'success') loadEvents();
+      else alert(data.message || 'Delete failed');
+    }
+
+    loadEvents();
+
+    
+  </script>
+</body>
+</html>
+

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>DiecastHub — Home</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>Welcome to DiecastHub</h1>
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="marketplace.html">Marketplace</a>
+      <a href="showcase.html">Showcase</a>
+      <a href="events.html">Events</a>
+      <a href="cart.html">Cart</a>
+      <a href="login.html">Login</a>
+      <a href="cart.html" style="position:relative; padding-right:18px;">
+  Cart <span id="badge" style="display:none; background:#ff3b3b; color:#fff; border-radius:999px; padding:2px 7px; font-size:11px; position:absolute; top:-8px; right:-12px;">0</span>
+</a>
+
+    </nav>
+  </header>
+
+  <main>
+    <h2>Your One-Stop Diecast Car Marketplace</h2>
+    <p>Find, collect, and showcase your favorite diecast brands like MINIGT, Hot Wheels, Tomica, and more!</p>
+  </main>
+
+  <script>
+  async function updateBadge() {
+    const el = document.getElementById('badge');
+    if (!el) return;
+    try {
+      const r = await fetch('backend/cart_count.php', { cache:'no-store' });
+      const data = await r.json();
+      if (data && typeof data.count === 'number') {
+        if (data.count > 0) { el.textContent = data.count; el.style.display='inline-block'; }
+        else { el.style.display='none'; }
+      }
+    } catch(e){}
+  }
+  updateBadge();
+</script>
+
+</body>
+</html>

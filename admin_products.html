@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Admin — Products</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body{font-family:Arial;background:#f6f7f9;margin:0}
+    header{background:#1f1f1f;color:#fff;padding:16px}
+    .wrap{max-width:1000px;margin:24px auto;padding:0 16px}
+    .grid{display:grid;grid-template-columns:1fr 2fr;gap:16px}
+    .card{background:#fff;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,.06);padding:18px}
+    input,button{padding:10px;border:1px solid #ddd;border-radius:8px;margin:6px 0;width:100%}
+    button.save{background:#4CAF50;color:#fff;border:none}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:10px;border-bottom:1px solid #eee;text-align:left}
+    th{background:#222;color:#fff}
+    img.thumb{width:80px;height:60px;object-fit:cover;border-radius:8px}
+    .danger{background:#ff5757;color:#fff;border:none;padding:8px 12px;border-radius:8px}
+  </style>
+</head>
+<body>
+<header><h1>Admin — Products</h1></header>
+<div class="wrap">
+  <div class="grid">
+    <!-- Form -->
+    <div class="card">
+      <h3 id="formTitle">Add Product</h3>
+      <input type="hidden" id="pid">
+      <input id="brand" placeholder="Brand (e.g. Hot Wheels)" />
+      <input id="name"  placeholder="Name (e.g. Nissan GT-R R35)" />
+      <input id="price" type="number" step="0.01" placeholder="Price (e.g. 29.90)" />
+      <input id="image" type="file" accept="image/*" />
+      <button class="save" onclick="saveProduct()">Save</button>
+      <button onclick="resetForm()">Reset</button>
+      <p style="font-size:12px;color:#666">Images are saved to <code>/uploads</code>. Keep names simple (no spaces).</p>
+      <a href="admin_dashboard.html">⬅ Back</a>
+    </div>
+
+    <!-- List -->
+    <div class="card">
+      <h3>All Products</h3>
+      <table>
+        <thead><tr><th>Image</th><th>Brand</th><th>Name</th><th>Price</th><th>Action</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+  // gate
+  (async () => {
+    const r = await fetch('backend/whoami.php', {cache:'no-store'});
+    const me = await r.json();
+    if (!me.logged_in || me.role !== 'admin') { alert('Admins only'); location.href='login.html'; }
+  })();
+
+  async function loadProducts(){
+    const r = await fetch('backend/get_products.php',{cache:'no-store'});
+    const items = await r.json();
+    const tb = document.getElementById('rows');
+    tb.innerHTML = '';
+    items.forEach(p=>{
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><img class="thumb" src="uploads/${p.image}" onerror="this.src='uploads/placeholder.jpg'"></td>
+        <td>${p.brand||''}</td>
+        <td>${p.name}</td>
+        <td>RM ${Number(p.price).toFixed(2)}</td>
+        <td>
+          <button onclick="edit(${p.id}, '${p.brand?.replace(/'/g,"&#39;")||''}', '${p.name.replace(/'/g,"&#39;")}', ${p.price})">Edit</button>
+          <button class="danger" onclick="del(${p.id})">Delete</button>
+        </td>`;
+      tb.appendChild(tr);
+    });
+  }
+
+  function edit(id, brand, name, price){
+    document.getElementById('pid').value = id;
+    document.getElementById('brand').value = brand;
+    document.getElementById('name').value  = name;
+    document.getElementById('price').value = price;
+    document.getElementById('formTitle').textContent = 'Edit Product';
+    window.scrollTo({top:0,behavior:'smooth'});
+  }
+  function resetForm(){
+    document.getElementById('pid').value='';
+    document.getElementById('brand').value='';
+    document.getElementById('name').value='';
+    document.getElementById('price').value='';
+    document.getElementById('image').value='';
+    document.getElementById('formTitle').textContent='Add Product';
+  }
+
+  async function saveProduct(){
+    const fd = new FormData();
+    fd.append('id', document.getElementById('pid').value);
+    fd.append('brand', document.getElementById('brand').value);
+    fd.append('name',  document.getElementById('name').value);
+    fd.append('price', document.getElementById('price').value);
+    const file = document.getElementById('image').files[0];
+    if (file) fd.append('image', file);
+
+    const r = await fetch('backend/save_product.php',{method:'POST', body:fd});
+    const data = await r.json();
+    alert(data.message || 'Saved');
+    resetForm();
+    loadProducts();
+  }
+
+  async function del(id){
+    if(!confirm('Delete this product?')) return;
+    const r = await fetch('backend/delete_product.php?id='+id);
+    const data = await r.json();
+    if (data.status==='success') loadProducts();
+    else alert(data.message || 'Delete failed');
+  }
+
+  loadProducts();
+</script>
+</body>
+</html>
